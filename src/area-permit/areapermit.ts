@@ -5,7 +5,7 @@ import axios from 'axios';
 
 import * as fastxml from 'fast-xml-parser';
 import { AreaPermit } from './types';
-import { APREA_PARKING_PERMIT_ZONES, areaPermitZoneType } from './areapermitzone';
+import { AREA_PARKING_PERMIT_ZONES, areaPermitZoneType } from './areapermitzone';
 
 const CALE_ENFORCEMENT_API_URL = `${process.env.CALE_WEBOFFICE_HOST}/cwo2exportservice/Enforcement/5/EnforcementService.svc`;
 
@@ -61,7 +61,7 @@ function reduceCaleParkingData(data: CaleParkingData): AreaPermit {
 
   return {
     licensePlate: data.Code,
-    zone: APREA_PARKING_PERMIT_ZONES.find(z => z.value == data.Zone),
+    zone: AREA_PARKING_PERMIT_ZONES.find(z => z.value == data.Zone),
     isValid: startDate <= currentDate && endDate >= currentDate
   };
 }
@@ -76,7 +76,7 @@ export async function lookupAreaPermit(licensePlate: string, areaPermitZone: str
 
   let returnData: AreaPermit = {
     licensePlate,
-    zone: APREA_PARKING_PERMIT_ZONES.find(z => z.value == areaPermitZone),
+    zone: AREA_PARKING_PERMIT_ZONES.find(z => z.value == areaPermitZone),
     isValid: false
   };
 
