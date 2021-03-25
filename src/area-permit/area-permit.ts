@@ -5,7 +5,7 @@ import axios from 'axios';
 
 import * as fastxml from 'fast-xml-parser';
 import { AreaPermit } from './types';
-import { AREA_PARKING_PERMIT_ZONES, areaPermitZoneType } from './areapermitzone';
+import { AREA_PARKING_PERMIT_ZONES, areaPermitZoneType } from './area-permit-zone';
 
 const CALE_ENFORCEMENT_API_URL = `${process.env.CALE_WEBOFFICE_HOST}/cwo2exportservice/Enforcement/5/EnforcementService.svc`;
 
