@@ -1,34 +1,35 @@
-import { Geometry } from '@turf/helpers';
-import { Feature } from '@turf/helpers';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 import * as fastxml from 'fast-xml-parser';
-import { GraphQLList, GraphQLObjectType, GraphQLString } from 'graphql';
-import { AreaPermitZone, ZoneEnforcementInfo } from './types';
+import { GraphQLObjectType, GraphQLString } from 'graphql';
+import { AreaPermitZone } from './types';
 
 let REFRESHING = false;
 
+export const AREA_PERMIT_ZONE_REGEX = /^APP Zone ([A-Z]+)[\s\W]?(.*)/im;
+
 export const areaPermitZones: Array<AreaPermitZone> | null = null;
 
-export const areaPermitZoneType: GraphQLObjectType = new GraphQLObjectType({
+export const areaPermitZoneType = new GraphQLObjectType({
   name: 'AreaPermitZone',
   description: 'AreaPermitZoneType',
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-
-  fields: () => ({
+  fields: {
     id: {
       type: GraphQLString
     },
     name: {
-      type: GraphQLString
-    } /*,
+      type: GraphQLString,
+      description: 'Name of the zone as it appears in the system of record'
+    },
     displayName: {
       type: GraphQLString,
-      description: 'String for use in things like labels or selections',
-      resolve(zone: AreaPermitZone) {
-        return zone.name;
-      }
-    }*/
-  })
+      description: 'String for use in things like labels or selections'
+    },
+    subSection: {
+      type: GraphQLString,
+      description: 'Portion of Zone name that signifies a sub-section of the larger zone'
+    }
+  }
 });
 
 async function refreshAreaPermitZones(): Promise<AreaPermitZone[] | null> {
@@ -51,19 +52,35 @@ async function refreshAreaPermitZones(): Promise<AreaPermitZone[] | null> {
     );
 
     if (res.status == 200 && res.data) {
-      const tempParsedZones: { Description: string; Name: string }[] = fastxml.parse(res.data).ArrayOfEnforcementZone
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const zones: { Description: string; Name: string }[] = fastxml.parse(res.data).ArrayOfEnforcementZone
         .EnforcementZone;
 
-      const areaPermitZones: AreaPermitZone[] = tempParsedZones
-        .filter(a => a.Name.startsWith('APP Zone'))
-        .map(item => {
-          return <AreaPermitZone>{
-            id: item.Name,
-            name: item.Name + (item.Description != '' ? ' (' + item.Description + ')' : '')
-          };
-        });
+      const map: Map<string, AreaPermitZone> = zones
+        .filter(zone => AREA_PERMIT_ZONE_REGEX.test(zone.Name))
+        .reduce((acc, curr) => {
+          const matches = AREA_PERMIT_ZONE_REGEX.exec(curr.Name);
 
-      return areaPermitZones;
+          if (matches) {
+            // We only want to display the description of zones that are the 'main' section
+            const displayName = () => {
+              return `Zone ${matches[1]}${curr.Description && !matches[2] ? ' (' + curr.Description + ')' : ''}`;
+            };
+
+            const z = {
+              id: matches[1].toUpperCase(),
+              name: curr.Name,
+              displayName: displayName(),
+              subSection: matches[2]
+            } as AreaPermitZone;
+
+            acc.set(z.id, z);
+          }
+
+          return acc;
+        }, new Map<string, AreaPermitZone>());
+
+      return Array.from(map.values());
     }
   } catch (err) {
     throw err;
