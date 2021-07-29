@@ -56,7 +56,7 @@ async function refreshAreaPermitZones(): Promise<AreaPermitZone[] | null> {
       const zones: { Description: string; Name: string }[] = fastxml.parse(res.data).ArrayOfEnforcementZone
         .EnforcementZone;
 
-      const map: Map<string, AreaPermitZone> = zones
+      return zones
         .filter(zone => AREA_PERMIT_ZONE_REGEX.test(zone.Name))
         .reduce((acc, curr) => {
           const matches = AREA_PERMIT_ZONE_REGEX.exec(curr.Name);
@@ -74,13 +74,11 @@ async function refreshAreaPermitZones(): Promise<AreaPermitZone[] | null> {
               subSection: matches[2]
             } as AreaPermitZone;
 
-            acc.set(z.id, z);
+            acc.push(z);
           }
 
           return acc;
-        }, new Map<string, AreaPermitZone>());
-
-      return Array.from(map.values());
+        }, new Array<AreaPermitZone>());
     }
   } catch (err) {
     throw err;
