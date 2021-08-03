@@ -6,7 +6,8 @@ export type ZoneEnforcementInfo = {
 export type AreaPermitZone = {
   id: string;
   name: string;
-  enforcementInfo: Array<ZoneEnforcementInfo>;
+  displayName: string;
+  subSection: string;
 };
 
 export type AreaPermit = {

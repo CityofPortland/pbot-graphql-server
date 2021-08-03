@@ -54,6 +54,17 @@ async function callCaleAPI(id: string): Promise<string> {
   return result.data;
 }
 
+async function findZone(
+  id: string,
+  predicate?: (value: AreaPermitZone, index: number, obj: AreaPermitZone[]) => unknown
+) {
+  if (!predicate) {
+    predicate = z => z.id == id;
+  }
+  const zones = await getAreaPermitZones(false);
+  return zones && zones.find(predicate);
+}
+
 async function reduceCaleParkingData(data: CaleParkingData): Promise<AreaPermit> {
   const startDate: Date = new Date(data.StartDateUtc);
   const endDate: Date = new Date(data.EndDateUtc);
@@ -62,22 +73,9 @@ async function reduceCaleParkingData(data: CaleParkingData): Promise<AreaPermit>
 
   return {
     licensePlate: data.Code,
-    // verify how app zones are named by cale //
-    zone: await findZone(data.Zone, z => data.Zone == `APP Zone ${z.id}`),
+    zone: await findZone(data.Zone, z => data.Zone == z.name),
     isValid: startDate <= currentDate && endDate >= currentDate
   };
-}
-
-async function findZone(
-  id: string,
-  predicate?: (value: AreaPermitZone, index: number, obj: AreaPermitZone[]) => unknown
-) {
-  if (!predicate) {
-    predicate = z => z.id == id;
-  }
-
-  const zones = await getAreaPermitZones(false);
-  return zones && zones.find(predicate);
 }
 
 export async function lookupAreaPermit(licensePlate: string, areaPermitZone: string): Promise<AreaPermit | null> {
@@ -89,10 +87,9 @@ export async function lookupAreaPermit(licensePlate: string, areaPermitZone: str
   try {
     const xmlResponseObj = fastxml.parse(xmlResponse);
 
+    // Start with a result that we didn't find a parking permit
     let returnData: AreaPermit = {
       licensePlate,
-      //zone: areaPermitZone,
-      //zone: AREA_PARKING_PERMIT_ZONES.find(z => z.value == areaPermitZone),
       zone: await findZone(areaPermitZone),
       isValid: false
     };

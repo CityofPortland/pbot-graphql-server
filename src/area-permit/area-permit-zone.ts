@@ -1,120 +1,84 @@
-import { Geometry } from '@turf/helpers';
-import { Feature } from '@turf/helpers';
-import axios, { AxiosError } from 'axios';
-import { GraphQLList, GraphQLObjectType, GraphQLString } from 'graphql';
-import { AreaPermitZone, ZoneEnforcementInfo } from './types';
+import axios from 'axios';
+import * as fastxml from 'fast-xml-parser';
+import { GraphQLObjectType, GraphQLString } from 'graphql';
+import { AreaPermitZone } from './types';
 
 let REFRESHING = false;
 
-export let areaPermitZones: Array<AreaPermitZone> | null = null;
+export const AREA_PERMIT_ZONE_REGEX = /^APP Zone ([A-Z]+)[\s\W]?(.*)/im;
 
-export const areaPermitZoneType: GraphQLObjectType = new GraphQLObjectType({
+export const areaPermitZones: Array<AreaPermitZone> | null = null;
+
+export const areaPermitZoneType = new GraphQLObjectType({
   name: 'AreaPermitZone',
   description: 'AreaPermitZoneType',
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-
-  fields: () => ({
+  fields: {
     id: {
       type: GraphQLString
     },
     name: {
-      type: GraphQLString
+      type: GraphQLString,
+      description: 'Name of the zone as it appears in the system of record'
     },
     displayName: {
       type: GraphQLString,
-      description: 'String for use in things like labels or selections',
-      resolve(zone: AreaPermitZone) {
-        if (/(Zone )[A-Z]{1}/.test(zone.name)) {
-          return zone.name;
-        } else {
-          return `Zone ${zone.id} (${zone.name})`;
-        }
-      }
+      description: 'String for use in things like labels or selections'
     },
-    enforcementInfo: {
-      type: GraphQLList(
-        new GraphQLObjectType({
-          name: 'ZoneEnforcementInfo',
-          fields: {
-            visitorLimit: {
-              type: GraphQLString
-            },
-            enforcementHours: {
-              type: GraphQLString
-            }
-          }
-        })
-      )
+    subSection: {
+      type: GraphQLString,
+      description: 'Portion of Zone name that signifies a sub-section of the larger zone'
     }
-  })
+  }
 });
 
 async function refreshAreaPermitZones(): Promise<AreaPermitZone[] | null> {
   REFRESHING = true;
 
   try {
+    if (!process.env.AREA_PERMIT_CALE_USERNAME || !process.env.AREA_PERMIT_CALE_PASSWORD) {
+      throw Error('No API credentials found, unable to call Cale API');
+    }
+
+    // get Zones from Cale //
     const res = await axios.get(
-      `https://www.portlandmaps.com/arcgis/rest/services/Public/COP_OpenData/MapServer/211/query`,
+      `https://webservice.mdc.dmz.caleaccess.com/cwo2exportservice/Enforcement/1/EnforcementService.svc/getenforcementzones`,
       {
-        params: {
-          f: 'geojson',
-          geometryType: 'esriGeometryEnvelope',
-          geometry: `{
-        "spatialReference": { "wkid": 102100 },
-        "xmin": -13674088.5469,
-        "ymin": 5689892.284199998,
-        "xmax": -13633591.503800001,
-        "ymax": 5724489.626800001
-      }`,
-          spatialRel: 'esriSpatialRelIntersects',
-          inSR: '4326',
-          outSR: '4326',
-          outFields: 'APPPZone, ZoneName, VisitorLimit, APPPTimeDay'
+        auth: { username: process.env.AREA_PERMIT_CALE_USERNAME, password: process.env.AREA_PERMIT_CALE_PASSWORD },
+        headers: {
+          'content-type': 'application/json'
         }
       }
     );
 
-    if (res.status == 200 && res.data && res.data.features) {
-      const data: Feature<Geometry>[] = res.data.features;
+    if (res.status == 200 && res.data) {
+      // eslint-disable-next-line @typescript-eslint/naming-convention
+      const zones: { Description: string; Name: string }[] = fastxml.parse(res.data).ArrayOfEnforcementZone
+        .EnforcementZone;
 
-      areaPermitZones = Array.from(
-        data
-          .reduce((prev, feature) => {
-            if (feature.properties) {
-              const id = feature.properties.APPPZone.toUpperCase();
-              const enforcementInfo: ZoneEnforcementInfo = {
-                visitorLimit: feature.properties.VisitorLimit?.toLowerCase(),
-                enforcementHours: feature.properties.APPPTimeDay?.toLowerCase()
-              };
+      return zones
+        .filter(zone => AREA_PERMIT_ZONE_REGEX.test(zone.Name))
+        .reduce((acc, curr) => {
+          const matches = AREA_PERMIT_ZONE_REGEX.exec(curr.Name);
 
-              if (prev.has(id)) {
-                const zone = prev.get(id);
+          if (matches) {
+            // We only want to display the description of zones that are the 'main' section
+            const displayName = () => {
+              return `Zone ${matches[1]}${curr.Description && !matches[2] ? ' (' + curr.Description + ')' : ''}`;
+            };
 
-                if (zone) {
-                  if (
-                    !zone.enforcementInfo.find(
-                      info =>
-                        info.enforcementHours == enforcementInfo.enforcementHours &&
-                        info.visitorLimit == enforcementInfo.visitorLimit
-                    )
-                  ) {
-                    zone.enforcementInfo.push(enforcementInfo);
-                  }
+            const z = {
+              id: matches[1].toUpperCase(),
+              name: curr.Name,
+              displayName: displayName(),
+              subSection: matches[2]
+            } as AreaPermitZone;
 
-                  prev.set(id, zone);
-                }
-              } else {
-                prev.set(id, {
-                  id,
-                  name: feature.properties.ZoneName.replace(/[ ]{1}\(.*\)$/, ''), // Remove trailing parentheses
-                  enforcementInfo: new Array<ZoneEnforcementInfo>(enforcementInfo)
-                });
-              }
-            }
-            return prev;
-          }, new Map<string, AreaPermitZone>())
-          .values()
-      );
+            acc.push(z);
+          }
+
+          return acc;
+        }, new Array<AreaPermitZone>());
     }
   } catch (err) {
     throw err;
@@ -122,7 +86,7 @@ async function refreshAreaPermitZones(): Promise<AreaPermitZone[] | null> {
     REFRESHING = false;
   }
 
-  return areaPermitZones;
+  return null;
 }
 
 export async function getAreaPermitZones(refreshFromSource = true): Promise<Array<AreaPermitZone> | null> {
