@@ -25,3 +25,42 @@ jobs:
         run: docker build -t $REPOSITORY/$IMAGE:main .
       - name: Push image to repository
         run: docker push $REPOSITORY/$IMAGE:main
+
+  deploy:
+    name: Deploy Helm upgrade on test namespace
+    runs-on: ubuntu-latest
+    env:
+      K8S_CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
+      K8S_CLUSTER_RG: ${{ secrets.K8S_CLUSTER_RG }}
+      K8S_NAMESPACE: test
+      REPOSITORY: ${{ secrets.ACR_NAME }}.azurecr.io
+      IMAGE: graphql-server
+      RELEASE_NAME: ${{ secrets.RELEASE_NAME }}-test
+    steps:
+      - uses: actions/checkout@v2
+      - uses: azure/setup-kubectl@v1
+      - uses: azure/setup-helm@v1
+      - name: Create Kubernetes secrets
+        env:
+          PORTLANDMAPS_API_KEY: ${{ secrets.PORTLANDMAPS_API_KEY }}
+          AREA_PERMIT_CALE_USERNAME: ${{ secrets.AREA_PERMIT_CALE_USERNAME }}
+          AREA_PERMIT_CALE_PASSWORD: ${{ secrets.AREA_PERMIT_CALE_PASSWORD }}
+        run: |
+          mkdir -p chart/.secret
+          echo -n "$PORTLANDMAPS_API_KEY" > chart/.secret/PORTLANDMAPS_API_KEY
+          echo -n "$AREA_PERMIT_CALE_USERNAME" > chart/.secret/AREA_PERMIT_CALE_USERNAME
+          echo -n "$AREA_PERMIT_CALE_PASSWORD" > chart/.secret/AREA_PERMIT_CALE_PASSWORD
+      - name: Login via Az module
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Log in to AKS
+        run: az aks get-credentials --name $K8S_CLUSTER_NAME --resource-group $K8S_CLUSTER_RG
+      - name: Deploy release
+        run: |
+          helm \
+          upgrade \
+          --namespace $K8S_NAMESPACE \
+          --install \
+          $RELEASE_NAME \
+          chart/
