@@ -66,3 +66,4 @@ jobs:
           --install \
           $RELEASE_NAME \
           chart/
+          -f chart/values-test.yaml
