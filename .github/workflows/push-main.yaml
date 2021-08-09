@@ -28,6 +28,8 @@ jobs:
 
   deploy:
     name: Deploy Helm upgrade on test namespace
+    needs:
+      - build-image
     runs-on: ubuntu-latest
     env:
       K8S_CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
