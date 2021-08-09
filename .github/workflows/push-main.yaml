@@ -65,5 +65,5 @@ jobs:
           --namespace $K8S_NAMESPACE \
           --install \
           $RELEASE_NAME \
-          chart/
+          chart/ \
           -f chart/values-test.yaml
