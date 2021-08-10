@@ -64,7 +64,6 @@ jobs:
           upgrade \
           --namespace $K8S_NAMESPACE \
           --install \
-          --force \
           $RELEASE_NAME \
           chart/ \
           -f chart/values-test.yaml
