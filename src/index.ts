@@ -1,10 +1,9 @@
-import express from 'express';
-import bodyParser from 'body-parser';
-import graphqlHTTP from 'express-graphql';
 import cors from 'cors';
 import { config as loadenv } from 'dotenv';
-
+import express from 'express';
+import graphqlHTTP from 'express-graphql';
 import schema from './schema';
+
 
 if (process.env.NODE_ENV !== 'production') {
   loadenv();
@@ -14,8 +13,8 @@ const app = express();
 
 app.use(cors());
 
-app.use(bodyParser.json({ limit: '10mb' }));
-app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 app.get('/', (req, res) => res.status(200).send('GraphQL running at /graphql'));
 

@@ -6,7 +6,8 @@ import * as turf from '@turf/helpers';
 import length from '@turf/length';
 import { GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLString } from 'graphql';
 import proj4 from 'proj4';
-import ArcGISParser, { Feature } from 'terraformer-arcgis-parser';
+import { arcgisToGeoJSON } from '@terraformer/arcgis';
+import Graphic from "@arcgis/core/Graphic";
 
 import axios from './api/arcgis';
 import { esriGeometry, esriGeometryType } from './common/geojson';
@@ -245,8 +246,8 @@ export const streetType: GraphQLObjectType = new GraphQLObjectType({
  * Transform a GeoJSON street feature into an internal Street object
  * @param feature GeoJSON Feature from a portlandmaps ArcGIS REST API
  */
-export function parseStreet(feature: Feature): Street {
-  const geometry = ArcGISParser.parse(feature).geometry as turf.LineString;
+export function parseStreet(feature: Graphic): Street {
+  const geometry = arcgisToGeoJSON(feature.geometry) as turf.LineString;
 
   if (!feature.attributes) {
     return {
@@ -292,7 +293,7 @@ export async function getStreet(id: string): Promise<Street | null> {
       const data = res.data.features;
 
       if (data) {
-        return data.map((value: Feature) => {
+        return data.map((value: Graphic) => {
           return parseStreet(value);
         });
       }
@@ -327,7 +328,7 @@ export async function getStreets(bbox: turf.BBox, spatialReference: number): Pro
     if (res.status == 200 && res.data && res.data.features) {
       const data = res.data.features;
 
-      return data.map((value: Feature) => {
+      return data.map((value: Graphic) => {
         return parseStreet(value);
       });
     }

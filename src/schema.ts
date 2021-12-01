@@ -13,7 +13,7 @@ import {
 
 import { addressType, searchAddress, searchTaxLot } from './address';
 import { Address } from './address/types';
-import { getDocument, Section, sectionType } from './document';
+import { getDocument, Section, sectionType } from './document/index.js';
 import { AreaPlan, areaPlanType, getAreaPlansByBBox, getAreaPlansById } from './plan/area-plan';
 import { getMasterStreetPlansByBBox, getMasterStreetPlansById, masterStreetPlanType } from './plan/master-street-plan';
 import { MasterStreetPlan } from './plan/types';
