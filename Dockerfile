@@ -1,4 +1,4 @@
-FROM node:14
+FROM node:16
 
 WORKDIR /home/node
 
@@ -8,14 +8,14 @@ RUN npm install
 
 RUN npm run build
 
-FROM node:14-slim
+FROM node:16-slim
 
 ENV NODE_ENV=production
 
 RUN set -ex \
     && buildDeps='' \
     && runDeps='\
-    libgit2-24 \
+    git \
     ' \
     && apt-get update -yqq \
     && apt-get upgrade -yqq \
@@ -35,7 +35,10 @@ RUN set -ex \
 
 WORKDIR /home/node
 
-COPY --from=0 /home/node/node_modules node_modules/
+# Build production node_modules folder
+COPY package*.json .
+RUN npm install
+
 COPY --from=0 --chown=node:node /home/node/dist dist/
 
 USER node

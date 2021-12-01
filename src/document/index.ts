@@ -1,51 +1,30 @@
-import { GraphQLObjectType, GraphQLString, GraphQLInt, GraphQLList } from 'graphql';
-
-import fse from 'fs-extra';
+import fs from 'fs';
+import { GraphQLInt, GraphQLList, GraphQLObjectType, GraphQLString } from 'graphql';
 import Metalsmith, { Files } from 'metalsmith';
 import markdown from 'metalsmith-markdown';
-import git, { Reset } from 'nodegit';
-import path from 'path';
+import path, { dirname } from 'path';
+import simpleGit, { SimpleGit } from 'simple-git';
+import { fileURLToPath } from 'url';
 
-const database = JSON.parse(fse.readFileSync(path.resolve(__dirname, './documents.json'), 'utf8'));
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const __filename = fileURLToPath(import.meta.url);
+// eslint-disable-next-line @typescript-eslint/naming-convention
+const __dirname = dirname(__filename);
+
+const database = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'document', 'index.json'), { encoding: 'utf8' }));
 
 for (const document of Object.keys(database)) {
-  const dir = path.resolve(__dirname, document);
+  const dir = path.resolve(__dirname, 'document', document);
 
-  fse.exists(dir, exists => {
-    const checkoutRemoteBranch = function(repo: git.Repository): Promise<void> {
-      return repo
-        .getBranch(database[document].branch)
-        .then(reference => {
-          return repo.checkoutBranch(reference, {});
-        })
-        .then(() => {
-          return repo.getReferenceCommit(`refs/remotes/origin/${database[document].branch}`);
-        })
-        .then(commit => {
-          git.Reset.reset(repo, commit, Reset.TYPE.HARD, {});
-        });
-    };
+  if (!fs.existsSync(dir)) {
+    const git: SimpleGit = simpleGit();
+    await git.clone(database[document].repository, dir);
+  }
 
-    if (!exists) {
-      git.Clone.clone(database[document].repository, dir, {
-        fetchOpts: {
-          callbacks: {
-            certificateCheck: (): number => {
-              // github will fail cert check on some OSX machines
-              // this overrides that check
-              return 0;
-            }
-          }
-        }
-      }).then(repo => {
-        return checkoutRemoteBranch(repo);
-      });
-    } else {
-      git.Repository.open(dir).then(repo => {
-        return checkoutRemoteBranch(repo);
-      });
-    }
-  });
+  const git: SimpleGit = simpleGit(dir);
+
+  await git.pull();
+  await git.checkout(database[document].branch);
 }
 
 export type Language = {
@@ -95,7 +74,7 @@ export const sectionType: GraphQLObjectType = new GraphQLObjectType({
 let refreshing = false;
 
 export const getDocument = (documentName: string): Promise<Section[]> =>
-  new Promise<Section[]>((resolve, reject) => {
+  new Promise<Section[]>(async (resolve, reject) => {
     if (Object.keys(database).findIndex(value => value === documentName) == -1) {
       reject(new Error(`No document named ${documentName} in list of documents.`));
     }
@@ -143,26 +122,11 @@ export const getDocument = (documentName: string): Promise<Section[]> =>
 
     if (!refreshing) {
       refreshing = true;
-      let repository: git.Repository;
-      git.Repository.open(path.resolve(__dirname, documentName))
-        .then(
-          (repo): Promise<void> => {
-            repository = repo;
-            return repository.fetchAll({
-              callbacks: {
-                certificateCheck: (): number => {
-                  return 0;
-                }
-              }
-            });
-          }
-        )
-        .then(
-          (): Promise<git.Oid> => {
-            refreshing = false;
-            const branch = database[documentName].branch;
-            return repository.mergeBranches(branch, `origin/${branch}`);
-          }
-        );
+      const git: SimpleGit = simpleGit(path.resolve(__dirname, documentName));
+      try {
+        git.pull('origin', database[documentName].branch);
+      } finally {
+        refreshing = false;
+      }
     }
   });
