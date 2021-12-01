@@ -36,7 +36,7 @@ RUN set -ex \
 WORKDIR /home/node
 
 # Build production node_modules folder
-COPY package*.json .
+COPY package*.json ./
 RUN npm install
 
 COPY --from=0 --chown=node:node /home/node/dist dist/
