@@ -12,16 +12,20 @@ FROM node:16-slim
 
 ENV NODE_ENV=production
 
+COPY .certs/ /usr/local/share/ca-certificates
+
 RUN set -ex \
     && buildDeps='' \
     && runDeps='\
+    ca-certificates \
     git \
     ' \
     && apt-get update -yqq \
     && apt-get upgrade -yqq \
-    && apt-get install -yqq --no-install-recommends \
+    && apt-get install -yqq \
     $buildDeps \
     $runDeps \
+    && update-ca-certificates \
     && apt-get purge --auto-remove -yqq $buildDeps \
     && apt-get autoremove -yqq --purge \
     && apt-get clean \
