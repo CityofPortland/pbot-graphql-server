@@ -1,3 +1,4 @@
+import { GraphQLFloat } from 'graphql';
 // @flow strict
 import along from '@turf/along';
 import bboxf from '@turf/bbox';
@@ -7,7 +8,7 @@ import length from '@turf/length';
 import { GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLString } from 'graphql';
 import proj4 from 'proj4';
 import { arcgisToGeoJSON } from '@terraformer/arcgis';
-import Graphic from "@arcgis/core/Graphic";
+import Graphic from '@arcgis/core/Graphic';
 
 import axios from './api/arcgis';
 import { esriGeometry, esriGeometryType } from './common/geojson';
@@ -35,6 +36,7 @@ export type Street = {
   id?: string;
   name?: string;
   block?: number;
+  width?: number;
   classifications?: Classification;
   projects?: Array<string>;
   geometry: turf.LineString;
@@ -171,6 +173,35 @@ export const streetType: GraphQLObjectType = new GraphQLObjectType({
         } catch (err) {
           console.debug(JSON.stringify(err));
         }
+      }
+    },
+    width: {
+      type: GraphQLFloat,
+      description: 'Street width in feet',
+      resolve: async (street: Street): Promise<number | undefined> => {
+        const url = 'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/139';
+
+        try {
+          const res = await axios.get(`${url}/query`, {
+            params: {
+              f: 'geojson',
+              geometryType: esriGeometryType(street.geometry),
+              geometry: esriGeometry(street.geometry),
+              spatialRel: 'esriSpatialRelIntersects',
+              inSR: 4326,
+              outSR: 4326,
+              outFields: 'RoadWidth'
+            }
+          });
+
+          if (res.status == 200 && res.data && res.data.features) {
+            // RoadWidth or PaveWidth
+            return res.data.features.pop().properties.RoadWidth;
+          }
+        } catch (err) {
+        } finally {
+        }
+        return 0;
       }
     },
     centroid: {
