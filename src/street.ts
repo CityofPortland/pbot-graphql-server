@@ -187,16 +187,41 @@ export const streetType: GraphQLObjectType = new GraphQLObjectType({
               f: 'geojson',
               geometryType: esriGeometryType(street.geometry),
               geometry: esriGeometry(street.geometry),
-              spatialRel: 'esriSpatialRelIntersects',
+              spatialRel: 'esriSpatialRelEnvelopeIntersects',
               inSR: 4326,
               outSR: 4326,
-              outFields: 'RoadWidth'
+              outFields: '*'
             }
           });
 
           if (res.status == 200 && res.data && res.data.features) {
-            // RoadWidth or PaveWidth
-            return res.data.features.pop().properties.RoadWidth;
+
+            // Attempt to filter the list down so we're not calculating midpoint of too many streets //
+            let features = res.data.features.filter((s:turf.Feature)=>street.name?.startsWith(s.properties?.Streetname));
+
+            const streetMidpoint = along(
+              street.geometry,
+              length(turf.feature(street.geometry), { units: 'meters' }) / 2,
+              { units: 'meters' }
+            );
+
+            for (const feature of features) {
+              feature.properties.midpoint = along(feature.geometry, length(feature, { units: 'meters' }) / 2, {
+                units: 'meters'
+              });
+              feature.properties.distance = distance(streetMidpoint, feature.properties.midpoint, { units: 'meters' });
+            }
+
+            features = features.sort(
+              (a: turf.Feature<turf.LineString>, b: turf.Feature<turf.LineString>) => {
+                const value =
+                  (a.properties ? a.properties.distance : Number.MAX_SAFE_INTEGER) -
+                  (b.properties ? b.properties.distance : Number.MIN_SAFE_INTEGER);
+                return value;
+              }
+            );
+
+            return features.shift().properties.RoadWidth;
           }
         } catch (err) {
         } finally {
