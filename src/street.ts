@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+import { GraphQLFloat } from 'graphql';
 // @flow strict
 import along from '@turf/along';
 import bboxf from '@turf/bbox';
@@ -7,7 +9,7 @@ import length from '@turf/length';
 import { GraphQLInt, GraphQLList, GraphQLNonNull, GraphQLObjectType, GraphQLString } from 'graphql';
 import proj4 from 'proj4';
 import { arcgisToGeoJSON } from '@terraformer/arcgis';
-import Graphic from "@arcgis/core/Graphic";
+import Graphic from '@arcgis/core/Graphic';
 
 import axios from './api/arcgis';
 import { esriGeometry, esriGeometryType } from './common/geojson';
@@ -16,6 +18,7 @@ import { AreaPlan, areaPlanType, getAreaPlansByBBox } from './plan/area-plan';
 import { getMasterStreetPlansByBBox, masterStreetPlanType } from './plan/master-street-plan';
 import { MasterStreetPlan } from './plan/types';
 import { getProjects, Project, projectType } from './project';
+import buffer from '@turf/buffer';
 
 const URLS = [
   'https://www.portlandmaps.com/arcgis/rest/services/Public/Transportation_System_Plan/MapServer/3',
@@ -35,8 +38,10 @@ export type Street = {
   id?: string;
   name?: string;
   block?: number;
+  width?: number;
   classifications?: Classification;
   projects?: Array<string>;
+  midpoint: turf.Point;
   geometry: turf.LineString;
 };
 
@@ -50,6 +55,9 @@ export type Classification = {
   design?: string;
   greenscape?: string;
 };
+
+const midpoint = (geometry: turf.LineString) =>
+  along(geometry, length(turf.feature(geometry), { units: 'meters' }) / 2, { units: 'meters' }).geometry;
 
 export const classificationType: GraphQLObjectType = new GraphQLObjectType({
   name: 'Classification',
@@ -127,50 +135,104 @@ export const streetType: GraphQLObjectType = new GraphQLObjectType({
               spatialRel: 'esriSpatialRelEnvelopeIntersects',
               inSR: 4326,
               outSR: 4326,
-              outFields: '*'
+              outFields: 'FULL_NAME, LEFTADD1, LEFTADD2, RGTADD1, RGTADD2'
             }
           });
 
-          if (res.status == 200 && res.data && res.data.features) {
+          if (res.status == 200 && res.data && res.data.features && res.data.features.length > 0) {
             // sort the features by distance
             // find midpoints
             // sort array by distance
-            const streetMidpoint = along(
-              street.geometry,
-              length(turf.feature(street.geometry), { units: 'meters' }) / 2,
-              { units: 'meters' }
-            );
+            const features: Array<
+              turf.Feature<
+                turf.LineString,
+                {
+                  LEFTADD1: number;
+                  LEFTADD2: number;
+                  RGTADD1: number;
+                  RGTADD2: number;
+                }
+              >
+            > = res.data.features
+              .filter((f: turf.Feature<turf.LineString, { FULL_NAME: string }>) =>
+                street.name?.startsWith(f.properties.FULL_NAME)
+              )
+              .map((f: turf.Feature<turf.LineString, { distance: number }>) => {
+                f.properties.distance = distance(street.midpoint, midpoint(f.geometry), { units: 'meters' });
 
-            for (const feature of res.data.features) {
-              feature.properties.midpoint = along(feature.geometry, length(feature, { units: 'meters' }) / 2, {
-                units: 'meters'
-              });
-              feature.properties.distance = distance(streetMidpoint, feature.properties.midpoint, { units: 'meters' });
-            }
+                return f;
+              })
+              .sort(
+                (
+                  a: turf.Feature<turf.LineString, { distance: number }>,
+                  b: turf.Feature<turf.LineString, { distance: number }>
+                ) => a.properties.distance - b.properties.distance
+              );
 
-            res.data.features = res.data.features.sort(
-              (a: turf.Feature<turf.LineString>, b: turf.Feature<turf.LineString>) => {
-                const value =
-                  (a.properties ? a.properties.distance : Number.MAX_SAFE_INTEGER) -
-                  (b.properties ? b.properties.distance : Number.MIN_SAFE_INTEGER);
-                return value;
-              }
-            );
+            const feature = features.shift();
 
-            for (const feature of res.data.features) {
-              if (street.name?.startsWith(feature.properties.FULL_NAME)) {
-                return Math.min(
-                  feature.properties.LEFTADD1,
-                  feature.properties.LEFTADD2,
-                  feature.properties.RGTADD1,
-                  feature.properties.RGTADD2
-                );
-              }
+            if (feature) {
+              return Math.min(
+                feature.properties.LEFTADD1,
+                feature.properties.LEFTADD2,
+                feature.properties.RGTADD1,
+                feature.properties.RGTADD2
+              );
             }
           }
         } catch (err) {
           console.debug(JSON.stringify(err));
         }
+
+        return undefined;
+      }
+    },
+    width: {
+      type: GraphQLFloat,
+      description: 'Street width in feet',
+      resolve: async (street: Street): Promise<number | undefined> => {
+        const url = 'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Assets/MapServer/139';
+
+        const geometry = buffer(street.geometry, 10, { units: 'meters' }).geometry;
+
+        if (geometry) {
+          try {
+            const res = await axios.get(`${url}/query`, {
+              params: {
+                f: 'geojson',
+                geometryType: esriGeometryType(geometry),
+                geometry: esriGeometry(geometry),
+                spatialRel: 'esriSpatialRelEnvelopeIntersects',
+                inSR: 4326,
+                outSR: 4326,
+                outFields: 'Streetname, RoadWidth'
+              }
+            });
+
+            if (res.status == 200 && res.data && res.data.features && res.data.features.length > 0) {
+              // Attempt to filter the list down so we're not calculating midpoint of too many streets //
+              const features = res.data.features
+                .filter((f: turf.Feature) => street.name?.startsWith(f.properties?.Streetname))
+                .map((f: turf.Feature<turf.LineString, { distance: number }>) => {
+                  f.properties.distance = distance(street.midpoint, midpoint(f.geometry), { units: 'meters' });
+
+                  return f;
+                })
+                .sort(
+                  (
+                    a: turf.Feature<turf.LineString, { distance: number }>,
+                    b: turf.Feature<turf.LineString, { distance: number }>
+                  ) => a.properties.distance - b.properties.distance
+                );
+
+              return features.shift().properties.RoadWidth;
+            }
+          } catch (err) {
+            console.debug(err);
+          }
+        }
+
+        return undefined;
       }
     },
     centroid: {
@@ -203,40 +265,8 @@ export const streetType: GraphQLObjectType = new GraphQLObjectType({
     relatedStreets: {
       type: GraphQLList(streetType),
       description: 'The street segments that adjoin this street segment',
-      resolve: async (street: Street): Promise<Street[]> => {
-        const url = 'https://www.portlandmaps.com/arcgis/rest/services/Public/COP_OpenData_Transportation/MapServer/68';
-
-        const res = await axios
-          .get<turf.FeatureCollection>(`${url}/query`, {
-            params: {
-              f: 'geojson',
-              geometryType: esriGeometryType(street.geometry),
-              geometry: esriGeometry(street.geometry),
-              spatialRel: 'esriSpatialRelEnvelopeIntersects',
-              inSR: '4326',
-              outSR: '4326',
-              outFields: '*'
-            }
-          })
-          .catch(err => {
-            throw new Error(err);
-          });
-
-        let streets = new Array<Street>();
-
-        if (res.status == 200 && res.data && res.data.features) {
-          streets = res.data.features.map(feature => {
-            const street: Street = {
-              id: '',
-              name: feature.properties ? feature.properties.FULL_NAME : '',
-              geometry: feature.geometry as turf.LineString,
-              classifications: {}
-            };
-            return street;
-          });
-        }
-
-        return streets;
+      resolve: async (street: Street): Promise<Street[] | null> => {
+        return getStreets(bboxf(street.geometry), 4326);
       }
     }
   })
@@ -251,16 +281,16 @@ export function parseStreet(feature: Graphic): Street {
 
   if (!feature.attributes) {
     return {
-      geometry
+      geometry,
+      midpoint: midpoint(geometry)
     };
   }
 
-  const name = feature.attributes.StreetName ? feature.attributes.StreetName.trim() : 'Unnamed segment';
-
   return {
     id: feature.attributes.TranPlanID,
-    name: name ? name : 'Unnamed segment',
+    name: feature.attributes.StreetName ? feature.attributes.StreetName.trim() : 'Unnamed segment',
     geometry,
+    midpoint: midpoint(geometry),
     classifications: {
       traffic: feature.attributes.Traffic,
       transit: feature.attributes.Transit,
