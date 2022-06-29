@@ -21,13 +21,13 @@ import { getProjects, Project, projectType } from './project';
 import buffer from '@turf/buffer';
 
 const URLS = [
-  'https://www.portlandmaps.com/arcgis/rest/services/Public/Transportation_System_Plan/MapServer/3',
-  'https://www.portlandmaps.com/arcgis/rest/services/Public/Transportation_System_Plan/MapServer/4',
-  'https://www.portlandmaps.com/arcgis/rest/services/Public/Transportation_System_Plan/MapServer/7',
-  'https://www.portlandmaps.com/arcgis/rest/services/Public/Transportation_System_Plan/MapServer/10',
-  'https://www.portlandmaps.com/arcgis/rest/services/Public/Transportation_System_Plan/MapServer/12',
-  'https://www.portlandmaps.com/arcgis/rest/services/Public/Transportation_System_Plan/MapServer/15',
-  'https://www.portlandmaps.com/arcgis/rest/services/Public/Transportation_System_Plan/MapServer/19'
+  'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Planning/MapServer/15',
+  'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Planning/MapServer/16',
+  'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Planning/MapServer/16',
+  'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Planning/MapServer/22',
+  'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Planning/MapServer/24',
+  'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Planning/MapServer/27',
+  'https://www.portlandmaps.com/arcgis/rest/services/Public/PBOT_Planning/MapServer/31'
 ];
 
 // ESRI maps use this wkid
@@ -197,7 +197,9 @@ export const streetType: GraphQLObjectType = new GraphQLObjectType({
 
         if (geometry) {
           try {
-            const res = await axios.get(`${url}/query`, {
+            const res = await axios.get<
+              turf.FeatureCollection<turf.LineString, { distance: number; RoadWidth: number; Streetname: string }>
+            >(`${url}/query`, {
               params: {
                 f: 'geojson',
                 geometryType: esriGeometryType(geometry),
@@ -212,20 +214,15 @@ export const streetType: GraphQLObjectType = new GraphQLObjectType({
             if (res.status == 200 && res.data && res.data.features && res.data.features.length > 0) {
               // Attempt to filter the list down so we're not calculating midpoint of too many streets //
               const features = res.data.features
-                .filter((f: turf.Feature) => street.name?.startsWith(f.properties?.Streetname))
-                .map((f: turf.Feature<turf.LineString, { distance: number }>) => {
+                .filter((f) => street.name?.startsWith(f.properties?.Streetname))
+                .map((f) => {
                   f.properties.distance = distance(street.midpoint, midpoint(f.geometry), { units: 'meters' });
 
                   return f;
                 })
-                .sort(
-                  (
-                    a: turf.Feature<turf.LineString, { distance: number }>,
-                    b: turf.Feature<turf.LineString, { distance: number }>
-                  ) => a.properties.distance - b.properties.distance
-                );
+                .sort((a, b) => a.properties.distance - b.properties.distance);
 
-              return features.shift().properties.RoadWidth;
+              return features.shift()?.properties.RoadWidth;
             }
           } catch (err) {
             console.debug(err);
