@@ -53,11 +53,13 @@ jobs:
       - name: Create Kubernetes secrets
         env:
           PORTLANDMAPS_API_KEY: ${{ secrets.PORTLANDMAPS_API_KEY }}
+          CALE_WEBOFFICE_HOST: ${{ secrets.CALE_WEBOFFICE_HOST }}
           AREA_PERMIT_CALE_USERNAME: ${{ secrets.AREA_PERMIT_CALE_USERNAME }}
           AREA_PERMIT_CALE_PASSWORD: ${{ secrets.AREA_PERMIT_CALE_PASSWORD }}
         run: |
           mkdir -p chart/.secret
           echo -n "$PORTLANDMAPS_API_KEY" > chart/.secret/PORTLANDMAPS_API_KEY
+          echo -n "$CALE_WEBOFFICE_HOST" > chart/.secret/CALE_WEBOFFICE_HOST
           echo -n "$AREA_PERMIT_CALE_USERNAME" > chart/.secret/AREA_PERMIT_CALE_USERNAME
           echo -n "$AREA_PERMIT_CALE_PASSWORD" > chart/.secret/AREA_PERMIT_CALE_PASSWORD
       - name: Login via Az module

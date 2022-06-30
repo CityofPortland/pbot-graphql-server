@@ -47,6 +47,11 @@ spec:
                 secretKeyRef:
                     name: {{ include "chart.fullname" . }}
                     key: PORTLANDMAPS_API_KEY
+            - name: CALE_WEBOFFICE_HOST
+              valueFrom:
+                secretKeyRef:
+                    name: {{ include "chart.fullname" . }}
+                    key: CALE_WEBOFFICE_HOST
             - name: AREA_PERMIT_CALE_USERNAME
               valueFrom:
                 secretKeyRef:
