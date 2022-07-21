@@ -3,7 +3,7 @@ import assert from 'assert';
 import { GraphQLBoolean, GraphQLObjectType, GraphQLString } from 'graphql';
 import axios from 'axios';
 
-import * as fastxml from 'fast-xml-parser';
+import { XMLParser } from 'fast-xml-parser';
 import { AreaPermit, AreaPermitZone } from './types';
 import { areaPermitZoneType, getAreaPermitZones } from './area-permit-zone';
 
@@ -58,7 +58,7 @@ async function findZone(
   predicate?: (value: AreaPermitZone, index: number, obj: AreaPermitZone[]) => unknown
 ) {
   if (!predicate) {
-    predicate = z => z.id == id;
+    predicate = (z) => z.id == id;
   }
   const zones = await getAreaPermitZones(false);
   return zones && zones.find(predicate);
@@ -72,7 +72,7 @@ async function reduceCaleParkingData(data: CaleParkingData): Promise<AreaPermit>
 
   return {
     licensePlate: data.Code,
-    zone: await findZone(data.Zone, z => data.Zone == z.name),
+    zone: await findZone(data.Zone, (z) => data.Zone == z.name),
     isValid: startDate <= currentDate && endDate >= currentDate
   };
 }
@@ -84,7 +84,8 @@ export async function lookupAreaPermit(licensePlate: string, areaPermitZone: str
   const xmlResponse = await callCaleAPI(licensePlate);
 
   try {
-    const xmlResponseObj = fastxml.parse(xmlResponse);
+    const parser = new XMLParser();
+    const xmlResponseObj = parser.parse(xmlResponse);
 
     // Start with a result that we didn't find a parking permit
     let returnData: AreaPermit = {

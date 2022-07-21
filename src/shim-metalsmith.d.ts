@@ -1,1 +1,1 @@
-declare module 'metalsmith-markdown';
+declare module '@metalsmith/markdown';

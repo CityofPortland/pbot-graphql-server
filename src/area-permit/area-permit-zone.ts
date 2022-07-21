@@ -1,5 +1,5 @@
 import axios from 'axios';
-import * as fastxml from 'fast-xml-parser';
+import { XMLParser } from 'fast-xml-parser';
 import { GraphQLObjectType, GraphQLString } from 'graphql';
 import { AreaPermitZone } from './types';
 
@@ -52,12 +52,13 @@ async function refreshAreaPermitZones(): Promise<AreaPermitZone[] | null> {
     );
 
     if (res.status == 200 && res.data) {
+      const parser = new XMLParser();
       // eslint-disable-next-line @typescript-eslint/naming-convention
-      const zones: { Description: string; Name: string }[] = fastxml.parse(res.data).ArrayOfEnforcementZone
+      const zones: { Description: string; Name: string }[] = parser.parse(res.data).ArrayOfEnforcementZone
         .EnforcementZone;
 
       return zones
-        .filter(zone => AREA_PERMIT_ZONE_REGEX.test(zone.Name))
+        .filter((zone) => AREA_PERMIT_ZONE_REGEX.test(zone.Name))
         .reduce((acc, curr) => {
           const matches = AREA_PERMIT_ZONE_REGEX.exec(curr.Name);
 
