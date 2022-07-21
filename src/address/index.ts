@@ -84,7 +84,7 @@ export async function searchAddress(search: string, city?: string): Promise<Addr
     if (res.status === 200 && res.data && res.data.status === 'success') {
       const { candidates, spatialReference } = res.data;
 
-      return candidates.map<Address>(c => {
+      return candidates.map<Address>((c) => {
         return {
           location: { x: c.location.x, y: c.location.y, spatialReference },
           name: c.address,
@@ -111,7 +111,7 @@ export async function searchTaxLot(search: string, city?: string): Promise<Addre
   const res = await axios.post<AssessorResult>('/assessor/', body);
 
   if (res.status === 200 && res.data && res.data.status === 'success') {
-    return res.data.results.map<Address>(value => {
+    return res.data.results.map<Address>((value) => {
       return {
         name: value.address,
         type: 'Property',

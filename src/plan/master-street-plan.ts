@@ -55,7 +55,7 @@ export async function getMasterStreetPlansByBBox(
   if (res.status == 200 && res.data && res.data.features) {
     const data: Feature<Polygon>[] = res.data.features;
 
-    plans = data.map(feature => {
+    plans = data.map((feature) => {
       if (feature.properties) {
         return {
           id: feature.properties.TranPlanID,
@@ -102,7 +102,7 @@ export async function getMasterStreetPlansById(id: string): Promise<MasterStreet
   if (res.status == 200 && res.data && res.data.features) {
     const data: Feature<Polygon>[] = res.data.features;
 
-    plans = data.map(feature => {
+    plans = data.map((feature) => {
       if (feature.properties) {
         return {
           id: feature.properties.TranPlanID,
@@ -130,7 +130,7 @@ export async function getMasterStreetPlansById(id: string): Promise<MasterStreet
 async function getPlanFeatures(plan: MasterStreetPlan): Promise<Array<MasterStreetPlanFeature>> {
   const features = new Array<MasterStreetPlanFeature>();
 
-  const promises = FEATURES_URL.map(async url => {
+  const promises = FEATURES_URL.map(async (url) => {
     const res = await axios
       .get(`${url}/query`, {
         params: {
@@ -148,7 +148,7 @@ async function getPlanFeatures(plan: MasterStreetPlan): Promise<Array<MasterStre
       const data: Feature<Geometry>[] = res.data.features;
 
       features.push(
-        ...data.map(feature => {
+        ...data.map((feature) => {
           if (feature.properties) {
             return {
               id: feature.properties.TranPlanID,

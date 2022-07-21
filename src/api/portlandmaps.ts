@@ -13,7 +13,7 @@ const axiosInstance = axios.create({
   }
 });
 
-axiosInstance.interceptors.request.use(config => {
+axiosInstance.interceptors.request.use((config) => {
   config.data.api_key = process.env.PORTLANDMAPS_API_KEY;
   config.data = qs.stringify(config.data);
 

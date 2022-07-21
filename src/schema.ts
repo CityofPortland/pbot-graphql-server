@@ -1,12 +1,9 @@
-// @flow strict
-
 import {
   GraphQLFloat,
   GraphQLInt,
   GraphQLList,
   GraphQLNonNull,
   GraphQLObjectType,
-  GraphQLScalarType,
   GraphQLSchema,
   GraphQLString
 } from 'graphql';

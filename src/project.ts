@@ -136,14 +136,14 @@ export async function getProjects(street: Street): Promise<Project[]> {
           outFields: '*'
         }
       })
-      .catch(err => {
+      .catch((err) => {
         throw new Error(err);
       });
 
     if (res.status == 200 && res.data && res.data.features) {
       const data: Feature<Geometry>[] = res.data.features;
 
-      projects.push(...data.map(value => parseProject(value)));
+      projects.push(...data.map((value) => parseProject(value)));
     }
   }
 
@@ -163,14 +163,14 @@ export async function getProjectsById(id: string): Promise<Project[]> {
           outFields: '*'
         }
       })
-      .catch(err => {
+      .catch((err) => {
         throw new Error(err);
       });
 
     if (res.status == 200 && res.data && res.data.features) {
       const data: Feature<Geometry>[] = res.data.features;
 
-      projects.push(...data.map(value => parseProject(value)));
+      projects.push(...data.map((value) => parseProject(value)));
     }
   }
 
@@ -201,7 +201,7 @@ export async function getProjectsByBBox(bbox: BBox, spatialReference: number): P
           outFields: '*'
         }
       })
-      .catch(err => {
+      .catch((err) => {
         throw new Error(err);
       });
 

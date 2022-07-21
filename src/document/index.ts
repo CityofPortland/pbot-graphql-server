@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { GraphQLInt, GraphQLList, GraphQLObjectType, GraphQLString } from 'graphql';
 import Metalsmith, { Files } from 'metalsmith';
-import markdown from 'metalsmith-markdown';
+import markdown from '@metalsmith/markdown';
 import path, { dirname } from 'path';
 import simpleGit, { SimpleGit } from 'simple-git';
 import { fileURLToPath } from 'url';
@@ -75,12 +75,12 @@ let refreshing = false;
 
 export const getDocument = (documentName: string): Promise<Section[]> =>
   new Promise<Section[]>(async (resolve, reject) => {
-    if (Object.keys(database).findIndex(value => value === documentName) == -1) {
+    if (Object.keys(database).findIndex((value) => value === documentName) == -1) {
       reject(new Error(`No document named ${documentName} in list of documents.`));
     }
 
     Metalsmith(__dirname)
-      .source(path.resolve(__dirname, documentName, database[documentName].subDir))
+      .source(path.resolve(__dirname, 'document', documentName, database[documentName].subDir))
       .ignore('.git')
       .destination(`./build/${documentName}`)
       .clean(true)
@@ -93,7 +93,7 @@ export const getDocument = (documentName: string): Promise<Section[]> =>
 
         const sections = new Array<Section>();
 
-        Object.keys(files).forEach(key => {
+        Object.keys(files).forEach((key) => {
           const text = files[key];
 
           try {
@@ -122,7 +122,7 @@ export const getDocument = (documentName: string): Promise<Section[]> =>
 
     if (!refreshing) {
       refreshing = true;
-      const git: SimpleGit = simpleGit(path.resolve(__dirname, documentName));
+      const git: SimpleGit = simpleGit(path.resolve(__dirname, 'document', documentName));
       try {
         git.pull('origin', database[documentName].branch);
       } finally {

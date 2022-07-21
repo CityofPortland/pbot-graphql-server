@@ -1,9 +1,8 @@
 import cors from 'cors';
 import { config as loadenv } from 'dotenv';
 import express from 'express';
-import graphqlHTTP from 'express-graphql';
+import { graphqlHTTP } from 'express-graphql';
 import schema from './schema';
-
 
 if (process.env.NODE_ENV !== 'production') {
   loadenv();

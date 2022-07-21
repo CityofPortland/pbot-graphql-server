@@ -34,7 +34,7 @@ export async function getAreaPlansByBBox(bbox: BBox, spatialReference: number): 
 
   const plans = new Array<AreaPlan>();
 
-  const promises = PLANS_URLS.map(async url => {
+  const promises = PLANS_URLS.map(async (url) => {
     const res = await axios
       .get(`${url}/query`, {
         params: {
@@ -86,7 +86,7 @@ export async function getAreaPlansByBBox(bbox: BBox, spatialReference: number): 
 export async function getAreaPlansById(id: string): Promise<AreaPlan[] | null> {
   const plans = new Array<AreaPlan>();
 
-  const promises = PLANS_URLS.map(async url => {
+  const promises = PLANS_URLS.map(async (url) => {
     const res = await axios
       .get(`${url}/query`, {
         params: {

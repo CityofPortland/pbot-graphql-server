@@ -87,7 +87,7 @@ export const CRSPropertiesUnion = new GraphQLUnionType({
   name: 'GeoJSONCRSProperties',
   description: 'CRS object properties.',
   types: () => [NamedCRSPropertiesObject, LinkedCRSPropertiesObject],
-  resolveType: value => {
+  resolveType: (value) => {
     if (value.name) return NamedCRSPropertiesObject;
     if (value.href) return LinkedCRSPropertiesObject;
   }
