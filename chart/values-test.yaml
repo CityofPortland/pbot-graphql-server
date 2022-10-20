@@ -6,7 +6,8 @@ ingress:
   hosts:
     - host: pbotapps-test.portland.gov
       paths:
-        - /graphql
+        - path: /graphql
+          pathType: Exact
   tls:
     - secretName: pbotapps-test-portland-gov-tls
       hosts:
