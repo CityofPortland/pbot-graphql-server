@@ -47,9 +47,9 @@ jobs:
       IMAGE: graphql-server
       RELEASE_NAME: ${{ secrets.RELEASE_NAME }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: azure/setup-kubectl@v1
-      - uses: azure/setup-helm@v1
+      - uses: actions/checkout@v3
+      - uses: azure/setup-kubectl@v3
+      - uses: azure/setup-helm@v3
       - name: Create Kubernetes secrets
         env:
           PORTLANDMAPS_API_KEY: ${{ secrets.PORTLANDMAPS_API_KEY }}

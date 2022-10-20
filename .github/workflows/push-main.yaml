@@ -12,7 +12,7 @@ jobs:
       REPOSITORY: ${{ secrets.ACR_NAME }}.azurecr.io
       IMAGE: graphql-server
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - name: Log in to Azure
         uses: azure/login@v1
         with:
@@ -39,9 +39,9 @@ jobs:
       IMAGE: graphql-server
       RELEASE_NAME: ${{ secrets.RELEASE_NAME }}-test
     steps:
-      - uses: actions/checkout@v2
-      - uses: azure/setup-kubectl@v1
-      - uses: azure/setup-helm@v1
+      - uses: actions/checkout@v3
+      - uses: azure/setup-kubectl@v3
+      - uses: azure/setup-helm@v3
       - name: Create Kubernetes secrets
         env:
           PORTLANDMAPS_API_KEY: ${{ secrets.PORTLANDMAPS_API_KEY }}
@@ -81,9 +81,9 @@ jobs:
       K8S_NAMESPACE: test
       RELEASE_NAME: ${{ secrets.RELEASE_NAME }}-test
     steps:
-      - uses: actions/checkout@v2
-      - uses: azure/setup-kubectl@v1
-      - uses: azure/setup-helm@v1
+      - uses: actions/checkout@v3
+      - uses: azure/setup-kubectl@v3
+      - uses: azure/setup-helm@v3
       - name: Login via Az module
         uses: azure/login@v1
         with:
