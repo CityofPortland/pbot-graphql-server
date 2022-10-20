@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { GraphQLFloat } from 'graphql';
+import { GraphQLBoolean, GraphQLFloat } from 'graphql';
 // @flow strict
 import along from '@turf/along';
 import bboxf from '@turf/bbox';
@@ -232,6 +232,62 @@ export const streetType: GraphQLObjectType = new GraphQLObjectType({
         return undefined;
       }
     },
+    oneWay: {
+      type: GraphQLBoolean,
+      description: 'Whether this street is one-way',
+      resolve: async (street: Street): Promise<boolean | undefined> => {
+        const url = 'https://www.portlandmaps.com/arcgis/rest/services/Public/COP_OpenData_Transportation/MapServer/68';
+
+        const bbox = bboxf(buffer(street.geometry, 10, { units: 'meters' }));
+
+        if (bbox) {
+          const [xmin, ymin, xmax, ymax] = bbox;
+          try {
+            const res = await axios.get<
+              turf.FeatureCollection<turf.LineString, { DIRECTION: number; distance: number; FULL_NAME: string }>
+            >(`${url}/query`, {
+              params: {
+                f: 'geojson',
+                geometryType: 'esriGeometryEnvelope',
+                geometry: {
+                  xmin,
+                  ymin,
+                  xmax,
+                  ymax,
+                  spatialReference: {
+                    wkid: 4326
+                  }
+                },
+                spatialRel: 'esriSpatialRelEnvelopeIntersects',
+                inSR: 4326,
+                outSR: 4326,
+                outFields: 'FULL_NAME, DIRECTION'
+              }
+            });
+
+            if (res.status == 200 && res.data && res.data.features && res.data.features.length > 0) {
+              // Attempt to filter the list down so we're not calculating midpoint of too many streets //
+              const features = res.data.features
+                .filter((f) => street.name?.startsWith(f.properties?.FULL_NAME))
+                .map((f) => {
+                  f.properties.distance = distance(street.midpoint, midpoint(f.geometry), { units: 'meters' });
+
+                  return f;
+                })
+                .sort((a, b) => a.properties.distance - b.properties.distance);
+
+              const direction = features.shift()?.properties.DIRECTION;
+
+              return direction ? new Set([2, 3]).has(direction) : undefined;
+            }
+          } catch (err) {
+            console.debug(err);
+          }
+        }
+
+        return undefined;
+      }
+    },
     centroid: {
       type: GeometryObject,
       description: 'The midpoint of the street',
@@ -335,8 +391,8 @@ export async function getStreet(id: string): Promise<Street | null> {
  */
 export async function getStreets(bbox: turf.BBox, spatialReference: number): Promise<Street[] | null> {
   if (spatialReference != 4326) {
-    [bbox[0], bbox[1]] = proj4(`${spatialReference}`, 'EPSG:4326', [bbox[0], bbox[1]]);
-    [bbox[2], bbox[3]] = proj4(`${spatialReference}`, 'EPSG:4326', [bbox[2], bbox[3]]);
+    [bbox[0], bbox[1]] = proj4(`EPSG:${spatialReference}`, 'EPSG:4326', [bbox[0], bbox[1]]);
+    [bbox[2], bbox[3]] = proj4(`EPSG:${spatialReference}`, 'EPSG:4326', [bbox[2], bbox[3]]);
   }
 
   for (const url of URLS) {
