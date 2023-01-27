@@ -36,7 +36,7 @@
     "graphql": "^15.3.0",
     "metalsmith": "^2.5.0",
     "proj4": "^2.8.0",
-    "simple-git": "^3.10.0",
+    "simple-git": "^3.16.0",
     "tslib": "^2.4.0"
   },
   "devDependencies": {
