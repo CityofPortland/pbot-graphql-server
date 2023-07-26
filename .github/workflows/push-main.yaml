@@ -9,7 +9,7 @@ jobs:
   build-image:
     runs-on: ubuntu-latest
     env:
-      REPOSITORY: ${{ secrets.ACR_NAME }}.azurecr.io
+      REPOSITORY: ${{ vars.REGISTRY_NAME }}.azurecr.io
       IMAGE: graphql-server
     steps:
       - uses: actions/checkout@v3
@@ -19,7 +19,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
       - name: Log in to Azure Container Registry
         env:
-          ACR_NAME: ${{ secrets.ACR_NAME }}
+          ACR_NAME: ${{ vars.REGISTRY_NAME }}
         run: az acr login --name $ACR_NAME
       - name: Run Docker build
         run: docker build -t $REPOSITORY/$IMAGE:main .
@@ -32,12 +32,12 @@ jobs:
       - build-image
     runs-on: ubuntu-latest
     env:
-      K8S_CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
-      K8S_CLUSTER_RG: ${{ secrets.K8S_CLUSTER_RG }}
-      K8S_NAMESPACE: test
-      REPOSITORY: ${{ secrets.ACR_NAME }}.azurecr.io
+      K8S_CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
+      K8S_CLUSTER_RG: ${{ vars.AKS_CLUSTER_RG }}
+      K8S_NAMESPACE: pbotapps-test
+      REPOSITORY: ${{ vars.REGISTRY_NAME }}.azurecr.io
       IMAGE: graphql-server
-      RELEASE_NAME: ${{ secrets.RELEASE_NAME }}-test
+      RELEASE_NAME: ${{ vars.HELM_RELEASE_NAME }}
     steps:
       - uses: actions/checkout@v3
       - uses: azure/setup-kubectl@v3
@@ -59,7 +59,10 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
       - name: Log in to AKS
-        run: az aks get-credentials --name $K8S_CLUSTER_NAME --resource-group $K8S_CLUSTER_RG
+        run: |
+          az aks get-credentials \
+          --name $K8S_CLUSTER_NAME \
+          --resource-group $K8S_CLUSTER_RG
       - name: Deploy release
         run: |
           helm \
@@ -76,10 +79,10 @@ jobs:
       - deploy
     runs-on: ubuntu-latest
     env:
-      K8S_CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
-      K8S_CLUSTER_RG: ${{ secrets.K8S_CLUSTER_RG }}
-      K8S_NAMESPACE: test
-      RELEASE_NAME: ${{ secrets.RELEASE_NAME }}-test
+      K8S_CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
+      K8S_CLUSTER_RG: ${{ vars.AKS_CLUSTER_RG }}
+      K8S_NAMESPACE: pbotapps-test
+      RELEASE_NAME: ${{ vars.HELM_RELEASE_NAME }}
     steps:
       - uses: actions/checkout@v3
       - uses: azure/setup-kubectl@v3
@@ -89,7 +92,10 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
       - name: Log in to AKS
-        run: az aks get-credentials --name $K8S_CLUSTER_NAME --resource-group $K8S_CLUSTER_RG
+        run: |
+          az aks get-credentials \
+          --name $K8S_CLUSTER_NAME \
+          --resource-group $K8S_CLUSTER_RG
       - name: Delete release's pods
         run: |
           kubectl \

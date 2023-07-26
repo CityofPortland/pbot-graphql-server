@@ -10,7 +10,7 @@ jobs:
     name: Tag and push main image
     runs-on: ubuntu-latest
     env:
-      REPOSITORY: ${{ secrets.ACR_NAME }}.azurecr.io
+      REPOSITORY: ${{ vars.REGISTRY_NAME }}.azurecr.io
       IMAGE: graphql-server
     steps:
       - name: Set $IMAGE_TAG
@@ -21,7 +21,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
       - name: Login to Azure Container Repository
         env:
-          ACR_NAME: ${{ secrets.ACR_NAME }}
+          ACR_NAME: ${{ vars.REGISTRY_NAME }}
         run: az acr login --name $ACR_NAME
       - name: Pull master image
         run: docker pull $REPOSITORY/$IMAGE:main
@@ -40,12 +40,12 @@ jobs:
       - tag-images
     runs-on: ubuntu-latest
     env:
-      K8S_CLUSTER_NAME: ${{ secrets.K8S_CLUSTER_NAME }}
-      K8S_CLUSTER_RG: ${{ secrets.K8S_CLUSTER_RG }}
-      K8S_NAMESPACE: ${{ secrets.K8S_NAMESPACE }}
-      REPOSITORY: ${{ secrets.ACR_NAME }}.azurecr.io
+      K8S_CLUSTER_NAME: ${{ vars.AKS_CLUSTER_NAME }}
+      K8S_CLUSTER_RG: ${{ vars.AKS_CLUSTER_RG }}
+      K8S_NAMESPACE: pbotapps
+      REPOSITORY: ${{ vars.REGISTRY_NAME }}.azurecr.io
       IMAGE: graphql-server
-      RELEASE_NAME: ${{ secrets.RELEASE_NAME }}
+      RELEASE_NAME: ${{ vars.HELM_RELEASE_NAME }}
     steps:
       - uses: actions/checkout@v3
       - uses: azure/setup-kubectl@v3
@@ -67,7 +67,10 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
       - name: Log in to AKS
-        run: az aks get-credentials --name $K8S_CLUSTER_NAME --resource-group $K8S_CLUSTER_RG
+        run: |
+          az aks get-credentials \
+          --name $K8S_CLUSTER_NAME \
+          --resource-group $K8S_CLUSTER_RG
       - name: Deploy release
         run: |
           helm \
