@@ -15,7 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@arcgis/core": "^4.24.4",
+    "@arcgis/core": "^4.34.8",
     "@metalsmith/markdown": "^1.6.0",
     "@terraformer/arcgis": "^2.1.1",
     "@turf/along": "^6.5.0",
